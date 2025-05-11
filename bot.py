@@ -13,21 +13,30 @@ async def on_ready():
     print(f'Giriş yapıldı: {bot.user.name}')
 
 @bot.event
+async def on_member_join(member):
+    for channel in member.guild.text_channels:
+        if channel.permissions_for(member.guild.me).send_messages:
+            await channel.send(f"Sunucumuza Hoş geldiniz, {member.mention}!")
+            break
+
+@bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    if "https://" in message.content or "http://" in message.content:
-        try:
-            await message.guild.ban(message.author, reason="Reklam içerikli mesaj")
-            print(f"{message.author} kullanıcısı link nedeniyle banlandı.")
-        except discord.errors.Forbidden:
-            await message.channel.send("Bu kullanıcıyı banlamak için yeterli yetkim yok.")
-        except Exception as e:
-            await message.channel.send("Bir hata oluştu: " + str(e))
-        return  # Komutları işlemeye gerek yok
+    # Eğer mesajda bağlantı varsa
+    if "http://" in message.content or "https://" in message.content:
+        # Yetkileri kontrol et (ban yetkisi örnek olarak kullanıldı)
+        if not message.author.guild_permissions.ban_members:
+            await message.channel.send(f"{message.author.mention}, bu sunucuda izinsiz bağlantı paylaşamazsınız!")
+            try:
+                await message.author.ban(reason="İzinsiz bağlantı paylaşımı")
+                await message.channel.send(f"{message.author.name} sunucudan banlandı.")
+            except discord.Forbidden:
+                await message.channel.send("Bu kullanıcıyı banlamak için gerekli izinlere sahip değilim.")
+            return
 
-    await bot.process_commands(message)
+    await bot.process_commands(message)  # Komutların çalışmasını sağla
 
 @bot.command()
 async def start(ctx):
