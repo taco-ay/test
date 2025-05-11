@@ -19,24 +19,32 @@ async def on_member_join(member):
             await channel.send(f"Sunucumuza Hoş geldiniz, {member.mention}!")
             break
 
+# Uyarıları tutmak için bir sözlük (bellekte tutulur)
+warnings = {}
+
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    # Eğer mesajda bağlantı varsa
-    if "http://" in message.content or "https://" in message.content:
-        # Yetkileri kontrol et (ban yetkisi örnek olarak kullanıldı)
-        if not message.author.guild_permissions.ban_members:
-            await message.channel.send(f"{message.author.mention}, bu sunucuda izinsiz bağlantı paylaşamazsınız!")
-            try:
-                await message.author.ban(reason="İzinsiz bağlantı paylaşımı")
-                await message.channel.send(f"{message.author.name} sunucudan banlandı.")
-            except discord.Forbidden:
-                await message.channel.send("Bu kullanıcıyı banlamak için gerekli izinlere sahip değilim.")
-            return
+    # Link içerip içermediğini kontrol et
+    if "http://" in message.content.lower() or "https://" in message.content.lower():
+        if message.author.guild_permissions.administrator:
+            return  # Adminleri es geç
 
-    await bot.process_commands(message)  # Komutların çalışmasını sağla
+        user_id = str(message.author.id)
+        if user_id not in warnings:
+            warnings[user_id] = 1
+            await message.channel.send(f"{message.author.mention}, bağlantı göndermek yasaktır! Bu ilk uyarınız.")
+        else:
+            warnings[user_id] += 1
+            if warnings[user_id] >= 2:
+                await message.channel.send(f"{message.author.mention}, tekrar bağlantı gönderdiğiniz için banlandınız.")
+                await message.guild.ban(message.author, reason="İzinsiz link paylaşımı (2. uyarıdan sonra)")
+            else:
+                await message.channel.send(f"{message.author.mention}, bu ikinci uyarınız. Lütfen tekrar etmeyin!")
+
+    await bot.process_commands(message)
 
 @bot.command()
 async def start(ctx):
